@@ -5,15 +5,13 @@ from pathlib import Path
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-
-
+from sqlalchemy import create_engine, text
 
 # CONFIGURATION
-
-
 load_dotenv()
 
 MAP_KEY = os.getenv("NASA_FIRMS_MAP_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 
@@ -24,20 +22,24 @@ DATA_DIR.mkdir(
     exist_ok=True
 )
 
-
-
 # VALIDATE API KEY
-
 
 if not MAP_KEY:
     raise RuntimeError(
         "NASA_FIRMS_MAP_KEY was not found in .env"
     )
 
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL was not found in .env"
+    )
 
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
 
 # FETCH DATA FROM NASA FIRMS
-
 
 def fetch_viirs_data(
     west: float,
@@ -433,6 +435,107 @@ def save_normalized_data(
     return output_path
 
 
+# SAVE NORMALIZED DATA TO POSTGRESQL
+
+
+def save_to_database(
+    df: pd.DataFrame
+):
+
+    if df.empty:
+
+        print("\nNo data to insert into PostgreSQL.")
+
+        return 0
+
+    database_columns = [
+        "latitude",
+        "longitude",
+        "acquisition_date",
+        "acquisition_time",
+        "brightness_temperature",
+        "background_temperature",
+        "frp",
+        "confidence",
+        "satellite",
+        "instrument",
+        "daynight",
+        "source",
+        "source_dataset",
+        "anomaly_type",
+    ]
+
+    records = (
+        df[database_columns]
+        .where(pd.notna(df[database_columns]), None)
+        .to_dict("records")
+    )
+
+    with engine.begin() as connection:
+
+        connection.execute(text("""
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            uq_thermal_anomalies_firms_detection
+            ON thermal_anomalies (
+                latitude,
+                longitude,
+                acquisition_date,
+                acquisition_time,
+                satellite
+            )
+        """))
+
+        result = connection.execute(text("""
+            INSERT INTO thermal_anomalies (
+                latitude,
+                longitude,
+                acquisition_date,
+                acquisition_time,
+                brightness_temperature,
+                background_temperature,
+                frp,
+                confidence,
+                satellite,
+                instrument,
+                daynight,
+                source,
+                source_dataset,
+                anomaly_type,
+                location
+            )
+            VALUES (
+                :latitude,
+                :longitude,
+                :acquisition_date,
+                :acquisition_time,
+                :brightness_temperature,
+                :background_temperature,
+                :frp,
+                :confidence,
+                :satellite,
+                :instrument,
+                :daynight,
+                :source,
+                :source_dataset,
+                :anomaly_type,
+                ST_SetSRID(
+                    ST_MakePoint(:longitude, :latitude),
+                    4326
+                )::geography
+            )
+            ON CONFLICT DO NOTHING
+        """), records)
+
+    inserted_count = result.rowcount
+
+    print(
+        f"\nInserted {inserted_count} new thermal detections "
+        "into PostgreSQL."
+    )
+
+    return inserted_count
+
+
 
 # DISPLAY SUMMARY
 
@@ -603,6 +706,11 @@ def main():
 
 
     save_normalized_data(
+        thermal_df
+    )
+
+
+    save_to_database(
         thermal_df
     )
 

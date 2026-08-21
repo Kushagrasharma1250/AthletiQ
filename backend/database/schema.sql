@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS thermal_anomalies (
 
     anomaly_type VARCHAR(100),
 
+    event_id INTEGER,
+
     location GEOGRAPHY(
         POINT,
         4326
@@ -93,3 +95,15 @@ idx_thermal_anomalies_location
 
 ON thermal_anomalies
 USING GIST(location);
+
+
+CREATE UNIQUE INDEX IF NOT EXISTS
+uq_thermal_anomalies_firms_detection
+
+ON thermal_anomalies (
+    latitude,
+    longitude,
+    acquisition_date,
+    acquisition_time,
+    satellite
+);
