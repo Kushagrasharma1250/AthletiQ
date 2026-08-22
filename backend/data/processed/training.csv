@@ -1,0 +1,4 @@
+frp_mean,confidence,facility_distance,facility_count,industrial_ratio,forest_ratio,agriculture_ratio,detection_count,label
+82,91,430,3,0.76,0.02,0.05,8,INDUSTRIAL_FIRE
+55,88,18000,0,0.02,0.81,0.04,2,WILDFIRE
+42,87,12000,0,0.05,0.02,0.75,1,AGRICULTURAL_BURNING
