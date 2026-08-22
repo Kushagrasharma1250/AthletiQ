@@ -2,11 +2,20 @@ import csv
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Industrial Fire Intelligence API",
     description="AI-powered satellite thermal anomaly detection and classification API",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 EVENTS_CSV_PATH = Path(__file__).parent / "data" / "events" / "events.csv"
