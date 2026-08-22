@@ -147,7 +147,7 @@ Risk score
 
 # 6. Copernicus EMS / EFFIS
 
-## 6.1 Description
+## 6.1Description
 
 The Copernicus Emergency Management Service provides geospatial information derived from satellite remote sensing and other data sources to support disaster and emergency management. Its emergency services include mapping and early-warning components. citeturn0search4
 
