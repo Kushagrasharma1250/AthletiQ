@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -15,7 +14,7 @@ from sklearn.cluster import DBSCAN
 # CONFIGURATION
 # ============================================================
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -538,23 +537,6 @@ def generate_event_code(number):
     return f"EVENT-{number:04d}"
 
 
-def next_event_number():
-
-    query = text(
-        """
-        SELECT COALESCE(
-            MAX(CAST(SUBSTRING(event_code FROM 7) AS INTEGER)),
-            0
-        ) + 1
-        FROM events
-        WHERE event_code ~ '^EVENT-[0-9]+$';
-        """
-    )
-
-    with engine.connect() as connection:
-        return int(connection.execute(query).scalar_one())
-
-
 # ============================================================
 # INSERT EVENT
 # ============================================================
@@ -969,7 +951,7 @@ def process_events(df):
     )
 
 
-    event_number = next_event_number()
+    event_number = 1
 
 
     for cluster_id in sorted(

@@ -1,9 +1,7 @@
 import csv
-import math
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 
 app = FastAPI(
     title="Industrial Fire Intelligence API",
@@ -18,30 +16,6 @@ EVENT_FEATURES_CSV_PATH = (
 TRAINING_DATA_PATH = (
     Path(__file__).parent / "data" / "processed" / "training_with_recurrence.csv"
 )
-
-
-class PredictionRequest(BaseModel):
-    frp_mean: float
-    frp_max: float
-    confidence: float
-    facility_distance: float
-    facility_count: int
-    osm_industrial_distance: float
-    osm_industrial_count: int
-    osm_industrial_area_ratio: float
-    osm_road_distance: float
-    osm_building_count: int
-    osm_building_density: float
-    osm_powerplant_distance: float
-    osm_substation_distance: float
-    osm_mine_distance: float
-    osm_quarry_distance: float
-    forest_ratio: float
-    agriculture_ratio: float
-    builtup_ratio: float
-    detection_count: int
-    event_duration_hours: float
-    recurrence_count: int
 
 
 def parse_float(value):
@@ -61,71 +35,6 @@ def root():
 def health():
     return {
         "status": "healthy"
-    }
-
-
-@app.get("/thermal/live")
-def get_live_thermal(
-    west: float,
-    south: float,
-    east: float,
-    north: float,
-    days: int = 1,
-):
-    if not -180 <= west < east <= 180 or not -90 <= south < north <= 90:
-        raise HTTPException(
-            status_code=422,
-            detail="Invalid bounding box"
-        )
-
-    try:
-        from .firm_ingestion import FIRMS_SOURCE, fetch_viirs_data
-
-        detections = fetch_viirs_data(
-            west=west,
-            south=south,
-            east=east,
-            north=north,
-            days=days,
-            source=FIRMS_SOURCE,
-        )
-    except ValueError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    except Exception as error:
-        raise HTTPException(
-            status_code=502,
-            detail="NASA FIRMS request failed"
-        ) from error
-
-    events = []
-    for row in detections.to_dict("records"):
-        brightness = row.get("bright_ti4")
-        events.append({
-            "latitude": row.get("latitude"),
-            "longitude": row.get("longitude"),
-            "temperature_celsius": (
-                None
-                if brightness is None or not math.isfinite(float(brightness))
-                else round(float(brightness) - 273.15, 2)
-            ),
-            "frp": row.get("frp"),
-            "confidence": row.get("confidence"),
-            "acquisition_date": row.get("acq_date"),
-            "acquisition_time": row.get("acq_time"),
-            "satellite": row.get("satellite"),
-            "instrument": row.get("instrument"),
-        })
-
-    return {
-        "count": len(events),
-        "source": FIRMS_SOURCE,
-        "bbox": {
-            "west": west,
-            "south": south,
-            "east": east,
-            "north": north,
-        },
-        "events": events,
     }
 
 
@@ -242,25 +151,6 @@ def get_statistics():
     return statistics
 
 
-@app.post("/predict")
-def predict_event(request: PredictionRequest):
-
-    try:
-        from .ml.inference.predict import predict
-
-        return predict(request.model_dump())
-    except FileNotFoundError as error:
-        raise HTTPException(
-            status_code=503,
-            detail="The trained classification model is unavailable"
-        ) from error
-    except ValueError as error:
-        raise HTTPException(
-            status_code=422,
-            detail=str(error)
-        ) from error
-
-
 @app.get("/events/{event_id}")
 def get_event(event_id: str):
 
@@ -294,14 +184,14 @@ def get_event(event_id: str):
         "thermal": {
             "frp_mean": float(event["frp_mean"]),
             "frp_max": float(event["frp_max"]),
-            "confidence": parse_float(event.get("confidence", event.get("confidence_mean", ""))),
+            "confidence": parse_float(event["confidence_mean"]),
         },
         "spatial": {
-            "facility_distance": parse_float(event.get("facility_distance", event.get("facility_distance_m", ""))),
-            "facility_count": int(event.get("facility_count", event.get("facilities_within_5km", 0))),
+            "facility_distance": parse_float(event["facility_distance_m"]),
+            "facility_count": int(event["facilities_within_5km"]),
         },
         "land_cover": {
-            "industrial_ratio": parse_float(event.get("osm_industrial_area_ratio", event.get("industrial_ratio", ""))),
+            "industrial_ratio": parse_float(event["industrial_ratio"]),
             "forest_ratio": parse_float(event["forest_ratio"]),
             "agriculture_ratio": parse_float(event["agriculture_ratio"]),
             "builtup_ratio": parse_float(event["builtup_ratio"]),
@@ -309,7 +199,7 @@ def get_event(event_id: str):
         "temporal": {
             "detection_count": int(event["detection_count"]),
             "duration_hours": parse_float(event["event_duration_hours"]),
-            "recurrence_frequency": int(event.get("recurrence_count", event.get("recurrence_frequency", 0))),
+            "recurrence_frequency": int(event["recurrence_frequency"]),
         },
         "persistence": event["persistence"],
         "persistence_score": int(event["persistence_score"]),

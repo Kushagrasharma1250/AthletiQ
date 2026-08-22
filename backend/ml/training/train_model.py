@@ -1,7 +1,6 @@
 import os
 import joblib
 import pandas as pd
-from pathlib import Path
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -13,16 +12,13 @@ from sklearn.metrics import (
 
 from xgboost import XGBClassifier
 
-from ..feature_contract import MODEL_FEATURE_COLUMNS, MODEL_FEATURE_VERSION
-
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-BACKEND_DIR = Path(__file__).parents[2]
-DATA_PATH = BACKEND_DIR / "data" / "processed" / "training_with_recurrence.csv"
-MODEL_PATH = BACKEND_DIR / "ml" / "models" / "industrial_fire_classifier_v2.joblib"
+DATA_PATH = "data/processed/training.csv"
+MODEL_PATH = "ml/models/industrial_fire_classifier.joblib"
 
 RANDOM_STATE = 42
 
@@ -49,7 +45,19 @@ print(df["label"].value_counts())
 # 2. SELECT FEATURES
 # ============================================================
 
-feature_columns = MODEL_FEATURE_COLUMNS
+feature_columns = [
+    "frp_mean",
+    "frp_max",
+    "confidence",
+    "facility_distance",
+    "facility_count",
+    "industrial_ratio",
+    "forest_ratio",
+    "agriculture_ratio",
+    "builtup_ratio",
+    "detection_count",
+    "event_duration_hours"
+]
 
 target_column = "label"
 
@@ -221,9 +229,7 @@ os.makedirs(
 model_package = {
     "model": model,
     "label_encoder": label_encoder,
-    "features": feature_columns,
-    "feature_version": MODEL_FEATURE_VERSION,
-    "osm_features_included": True,
+    "features": feature_columns
 }
 
 joblib.dump(
