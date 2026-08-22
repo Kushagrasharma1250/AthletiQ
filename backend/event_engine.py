@@ -790,6 +790,53 @@ def link_detections(
 
 
 # ============================================================
+# EVENT CSV EXPORT
+# ============================================================
+
+def export_events_csv():
+
+    query = text(
+        """
+        SELECT
+            event_code AS event_id,
+            ST_Y(geometry) AS latitude,
+            ST_X(geometry) AS longitude,
+            first_detected AS first_detection,
+            last_detected AS last_detection,
+            detection_count
+        FROM events
+        ORDER BY id;
+        """
+    )
+
+    with engine.connect() as connection:
+
+        events_df = pd.read_sql(
+            query,
+            connection
+        )
+
+    output_path = (
+        os.path.dirname(__file__)
+        + "/data/events/events.csv"
+    )
+
+    os.makedirs(
+        os.path.dirname(output_path),
+        exist_ok=True
+    )
+
+    events_df.to_csv(
+        output_path,
+        index=False
+    )
+
+    print(
+        f"Events exported: {output_path}"
+    )
+
+
+# ============================================================
 # PROCESS EVENTS
 # ============================================================
 
@@ -1069,12 +1116,16 @@ def main():
             "\nNo new thermal detections require processing."
         )
 
+        export_events_csv()
+
         return
 
 
     process_events(
         pending_df
     )
+
+    export_events_csv()
 
 
     print(
