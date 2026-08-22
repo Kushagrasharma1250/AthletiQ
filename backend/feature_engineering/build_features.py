@@ -1,13 +1,18 @@
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
+sys.path.insert(0, str(Path(__file__).parents[1]))
+
 from landcover import calculate_landcover_features
+from persistence.detector import calculate_persistence, calculate_persistence_score
 from spatial import calculate_spatial_features
-from temporal import calculate_temporal_features
+from temporal import calculate_recurrence_frequency, calculate_temporal_features
+from temporal import calculate_recurrence_frequency, calculate_temporal_features
 from thermal import calculate_thermal_features
 
 
@@ -22,7 +27,8 @@ FEATURE_COLUMNS = [
     "brightness_temp_mean", "facility_distance_m", "facilities_within_1km",
     "facilities_within_5km", "industrial_ratio", "forest_ratio",
     "agriculture_ratio", "builtup_ratio", "detection_count",
-    "event_duration_hours", "recurrence_frequency",
+    "event_duration_hours", "recurrence_frequency", "persistence",
+    "persistence_score",
 ]
 
 
@@ -63,12 +69,24 @@ def load_facilities():
         return pd.read_sql(query, connection)
 
 
-def build_event_features(event, detections, facilities):
+def build_event_features(event, detections, facilities, events):
     features = {"event_id": int(event["event_id"]), "event_code": event["event_code"]}
     features.update(calculate_thermal_features(detections))
     features.update(calculate_spatial_features(event, facilities))
     features.update(calculate_landcover_features(event))
-    features.update(calculate_temporal_features(detections))
+    temporal = calculate_temporal_features(detections)
+    temporal["recurrence_frequency"] = calculate_recurrence_frequency(event, events)
+    features.update(temporal)
+    features["persistence"] = calculate_persistence(
+        temporal["detection_count"],
+        temporal["event_duration_hours"],
+        temporal["recurrence_frequency"],
+    )
+    features["persistence_score"] = calculate_persistence_score(
+        temporal["detection_count"],
+        temporal["event_duration_hours"],
+        temporal["recurrence_frequency"],
+    )
     return features
 
 
@@ -79,7 +97,7 @@ def build_feature_table():
     for _, event in events.iterrows():
         detections = load_detections(event["event_id"])
         if not detections.empty:
-            rows.append(build_event_features(event, detections, facilities))
+            rows.append(build_event_features(event, detections, facilities, events))
     return pd.DataFrame(rows, columns=FEATURE_COLUMNS)
 
 
