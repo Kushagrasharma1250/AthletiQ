@@ -1,0 +1,25 @@
+MODEL_FEATURE_COLUMNS = [
+    "frp_mean",
+    "frp_max",
+    "confidence",
+    "facility_distance",
+    "facility_count",
+    "osm_industrial_distance",
+    "osm_industrial_count",
+    "osm_industrial_area_ratio",
+    "osm_road_distance",
+    "osm_building_count",
+    "osm_building_density",
+    "osm_powerplant_distance",
+    "osm_substation_distance",
+    "osm_mine_distance",
+    "osm_quarry_distance",
+    "forest_ratio",
+    "agriculture_ratio",
+    "builtup_ratio",
+    "detection_count",
+    "event_duration_hours",
+    "recurrence_count",
+]
+
+MODEL_FEATURE_VERSION = "osm-v2"

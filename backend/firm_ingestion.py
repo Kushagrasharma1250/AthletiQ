@@ -8,10 +8,15 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 # CONFIGURATION
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
-MAP_KEY = os.getenv("NASA_FIRMS_MAP_KEY")
+MAP_KEY = os.getenv("FIRMS_MAP_KEY") or os.getenv("NASA_FIRMS_MAP_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+FIRMS_SOURCE = os.getenv("FIRMS_SOURCE", "VIIRS_NOAA21_NRT")
+USER_AGENT = os.getenv(
+    "OSM_USER_AGENT",
+    "AthletiQ/1.0 (live thermal research prototype)"
+)
 
 BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 
@@ -106,6 +111,7 @@ def fetch_viirs_data(
 
         response = requests.get(
             url,
+            headers={"User-Agent": USER_AGENT},
             timeout=60
         )
 

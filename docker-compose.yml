@@ -15,6 +15,30 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/database/events_schema.sql:/docker-entrypoint-initdb.d/02_events_schema.sql:ro
+      - ./backend/database/seed_facilities.sql:/docker-entrypoint-initdb.d/03_seed_facilities.sql:ro
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: athletiq_backend
+
+    restart: unless-stopped
+
+    depends_on:
+      - postgres
+
+    env_file:
+      - ./backend/.env
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://fire_admin:131006@postgres:5432/fire_intelligence
+
+    ports:
+      - "8000:8000"
 
 volumes:
   postgres_data:

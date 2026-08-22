@@ -1,1 +1,4 @@
 .venv
+backend/.env
+backend/data/raw/osm/*.json
+backend/data/raw/landcover/*.tif
